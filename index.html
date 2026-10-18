@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Canvas Studio</title>
+  <style>
+    :root {
+      --bg-color: #1e1e2e;
+      --card-bg: #2a2a3c;
+      --accent-color: #7aa2f7;
+      --text-color: #c0caf5;
+      --grid-border: #414868;
+      --active-tool: #f7768e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    header {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      letter-spacing: 1px;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .main-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: center;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .toolbar-panel {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 260px;
+    }
+
+    .tool-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tool-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent-color);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    button {
+      background-color: #3b4261;
+      color: #ffffff;
+      border: 1px solid transparent;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #4a547a;
+    }
+
+    button.active {
+      background-color: var(--active-tool);
+      border-color: #ffffff;
+      font-weight: bold;
+    }
+
+    .color-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .color-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: none;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: 2px solid #565f89;
+      border-radius: 8px;
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 100%;
+      padding-top: 100%;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.1s;
+    }
+
+    .swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .canvas-panel {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #pixel-grid {
+      display: grid;
+      background-color: #ffffff;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      user-select: none;
+      touch-action: none;
+    }
+
+    .pixel {
+      width: 100%;
+      height: 100%;
+      background-color: #ffffff;
+    }
+
+    .show-grid .pixel {
+      box-shadow: inset 0 0 0 0.5px var(--grid-border);
+    }
+
+    .export-btn {
+      background-color: #9ece6a;
+      color: #1a1b26;
+      font-weight: bold;
+    }
+
+    .export-btn:hover {
+      background-color: #b9f27c;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Pixel Canvas Studio</h1>
+    <p>自訂像素繪圖板 · 支援筆刷、填色與高解析匯出</p>
+  </header>
+
+  <div class="main-container">
+    <!-- 控制面板 -->
+    <div class="toolbar-panel">
+      <!-- 畫布大小 -->
+      <div class="tool-group">
+        <label>畫布解析度</label>
+        <div class="btn-grid">
+          <button type="button" class="size-btn" data-size="8">8 x 8</button>
+          <button type="button" class="size-btn active" data-size="16">16 x 16</button>
+          <button type="button" class="size-btn" data-size="24">24 x 24</button>
+          <button type="button" id="grid-toggle-btn">開/關網格</button>
+        </div>
+      </div>
+
+      <!-- 工具模式 -->
+      <div class="tool-group">
+        <label>工具選擇</label>
+        <div class="btn-grid">
+          <button type="button" class="tool-btn active" data-tool="pen">✏️ 畫筆</button>
+          <button type="button" class="tool-btn" data-tool="eraser">🧹 橡皮擦</button>
+          <button type="button" class="tool-btn" data-tool="bucket">🪣 油漆桶</button>
+          <button type="button" class="tool-btn" data-tool="picker">🧪 吸管</button>
+        </div>
+      </div>
+
+      <!-- 顏色選擇 -->
+      <div class="color-section">
+        <label>顏色設置</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="primary-color" value="#000000">
+          <span id="color-hex-label">#000000</span>
+        </div>
+        <div class="palette" id="preset-palette"></div>
+      </div>
+
+      <!-- 操作按鈕 -->
+      <div class="tool-group">
+        <label>操作與匯出</label>
+        <div class="btn-grid">
+          <button type="button" id="undo-btn">↩️ 復原</button>
+          <button type="button" id="clear-btn">🗑️ 清空</button>
+        </div>
+        <button type="button" id="export-btn" class="export-btn" style="margin-top: 6px;">💾 匯出 PNG</button>
+      </div>
+    </div>
+
+    <!-- 畫布區塊 -->
+    <div class="canvas-panel">
+      <div id="pixel-grid" class="show-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_GRID_PIXELS = 400;
+    const PALETTE_COLORS = [
+      "#000000", "#ffffff", "#f7768e", "#ff9e64",
+      "#e0af68", "#9ece6a", "#7aa2f7", "#bb9af7"
+    ];
+
+    let currentSize = 16;
+    let currentTool = 'pen';
+    let currentColor = '#000000';
+    let isDrawing = false;
+    let historyStack = [];
+
+    const gridContainer = document.getElementById('pixel-grid');
+    const colorPicker = document.getElementById('primary-color');
+    const colorHexLabel = document.getElementById('color-hex-label');
+    const presetPalette = document.getElementById('preset-palette');
+    const gridToggleBtn = document.getElementById('grid-toggle-btn');
+    const undoBtn = document.getElementById('undo-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const exportBtn = document.getElementById('export-btn');
+
+    // 初始化調色盤
+    PALETTE_COLORS.forEach(color => {
+      const swatch = document.createElement('div');
+      swatch.className = 'swatch';
+      swatch.style.backgroundColor = color;
+      swatch.addEventListener('click', () => {
+        currentColor = color;
+        colorPicker.value = color;
+        colorHexLabel.textContent = color.toUpperCase();
+      });
+      presetPalette.appendChild(swatch);
+    });
+
+    colorPicker.addEventListener('input', (e) => {
+      currentColor = e.target.value;
+      colorHexLabel.textContent = currentColor.toUpperCase();
+    });
+
+    // 儲存狀態以供 Undo
+    function saveState() {
+      const pixels = Array.from(gridContainer.children).map(p => p.style.backgroundColor || '#ffffff');
+      historyStack.push(pixels);
+      if (historyStack.length > 15) historyStack.shift();
+    }
+
+    // 初始化畫布
+    function createGrid(size) {
+      gridContainer.innerHTML = '';
+      historyStack = [];
+      gridContainer.style.width = `${DEFAULT_GRID_PIXELS}px`;
+      gridContainer.style.height = `${DEFAULT_GRID_PIXELS}px`;
+      gridContainer.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      gridContainer.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+
+      for (let i = 0; i < size * size; i++) {
+        const pixel = document.createElement('div');
+        pixel.className = 'pixel';
+        pixel.dataset.index = i;
+        pixel.style.backgroundColor = '#ffffff';
+
+        pixel.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          isDrawing = true;
+          saveState();
+          handlePixelAction(i);
+        });
+
+        pixel.addEventListener('mouseenter', () => {
+          if (isDrawing && (currentTool === 'pen' || currentTool === 'eraser')) {
+            handlePixelAction(i);
+          }
+        });
+
+        gridContainer.appendChild(pixel);
+      }
+    }
+
+    window.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+
+    // 處理格點操作
+    function handlePixelAction(index) {
+      const pixels = gridContainer.children;
+      const targetPixel = pixels[index];
+
+      if (currentTool === 'pen') {
+        targetPixel.style.backgroundColor = currentColor;
+      } else if (currentTool === 'eraser') {
+        targetPixel.style.backgroundColor = '#ffffff';
+      } else if (currentTool === 'picker') {
+        const rgb = targetPixel.style.backgroundColor || '#ffffff';
+        const hex = rgbToHex(rgb);
+        currentColor = hex;
+        colorPicker.value = hex;
+        colorHexLabel.textContent = hex.toUpperCase();
+        setTool('pen');
+      } else if (currentTool === 'bucket') {
+        floodFill(index);
+      }
+    }
+
+    // 油漆桶演算法
+    function floodFill(startIndex) {
+      const pixels = gridContainer.children;
+      const targetColor = pixels[startIndex].style.backgroundColor || '#ffffff';
+      const fillHex = currentColor;
+      
+      const tempDiv = document.createElement('div');
+      tempDiv.style.backgroundColor = fillHex;
+      document.body.appendChild(tempDiv);
+      const computedFill = getComputedStyle(tempDiv).backgroundColor;
+      document.body.removeChild(tempDiv);
+
+      if (targetColor === computedFill) return;
+
+      const queue = [startIndex];
+      const visited = new Uint8Array(pixels.length);
+
+      while (queue.length > 0) {
+        const idx = queue.shift();
+        if (visited[idx]) continue;
+        visited[idx] = 1;
+
+        if (pixels[idx].style.backgroundColor === targetColor || (!pixels[idx].style.backgroundColor && targetColor === 'rgb(255, 255, 255)')) {
+          pixels[idx].style.backgroundColor = fillHex;
+
+          const r = Math.floor(idx / currentSize);
+          const c = idx % currentSize;
+
+          if (r > 0) queue.push(idx - currentSize);
+          if (r < currentSize - 1) queue.push(idx + currentSize);
+          if (c > 0) queue.push(idx - 1);
+          if (c < currentSize - 1) queue.push(idx + 1);
+        }
+      }
+    }
+
+    function rgbToHex(rgb) {
+      if (rgb.startsWith('#')) return rgb;
+      const match = rgb.match(/\d+/g);
+      if (!match) return '#ffffff';
+      return '#' + match.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+    }
+
+    function setTool(toolName) {
+      currentTool = toolName;
+      document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tool === toolName);
+      });
+    }
+
+    // 事件監聽綁定
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => setTool(btn.dataset.tool));
+    });
+
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSize = parseInt(btn.dataset.size);
+        createGrid(currentSize);
+      });
+    });
+
+    gridToggleBtn.addEventListener('click', () => {
+      gridContainer.classList.toggle('show-grid');
+    });
+
+    undoBtn.addEventListener('click', () => {
+      if (historyStack.length === 0) return;
+      const prevState = historyStack.pop();
+      const pixels = gridContainer.children;
+      for (let i = 0; i < pixels.length; i++) {
+        pixels[i].style.backgroundColor = prevState[i];
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      if (confirm('確定要清空畫布嗎？')) {
+        saveState();
+        Array.from(gridContainer.children).forEach(p => p.style.backgroundColor = '#ffffff');
+      }
+    });
+
+    exportBtn.addEventListener('click', () => {
+      const exportCanvas = document.createElement('canvas');
+      const exportScale = 20; // 每個像素放大為 20x20，保證清晰
+      exportCanvas.width = currentSize * exportScale;
+      exportCanvas.height = currentSize * exportScale;
+      const ctx = exportCanvas.getContext('2d');
+
+      const pixels = gridContainer.children;
+      for (let i = 0; i < pixels.length; i++) {
+        const x = (i % currentSize) * exportScale;
+        const y = Math.floor(i / currentSize) * exportScale;
+        ctx.fillStyle = pixels[i].style.backgroundColor || '#ffffff';
+        ctx.fillRect(x, y, exportScale, exportScale);
+      }
+
+      const link = document.createElement('a');
+      link.download = `pixel-art-${Date.now()}.png`;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // 預設建立 16x16 畫布
+    createGrid(currentSize);
+  </script>
+</body>
+</html>
